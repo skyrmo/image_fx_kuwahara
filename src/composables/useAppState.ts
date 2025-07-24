@@ -1,8 +1,7 @@
-import { reactive, readonly } from "vue";
+import { reactive } from "vue";
 
 // Settings State Interface
 export interface SettingsState {
-    kernelSize: number;
     enableKMeans: boolean;
     numColors: number;
 }
@@ -19,7 +18,6 @@ export interface ImageState {
 
 // Settings State
 const settingsState = reactive<SettingsState>({
-    kernelSize: 9,
     enableKMeans: false,
     numColors: 8,
 });
@@ -39,13 +37,12 @@ export function useSettingsState() {
         updateSettings: (newSettings: Partial<SettingsState>) => {
             Object.assign(settingsState, newSettings);
         },
-        resetSettings: () => {
-            Object.assign(settingsState, {
-                kernelSize: 9,
-                enableKMeans: false,
-                numColors: 8,
-            });
-        },
+        // resetSettings: () => {
+        //     Object.assign(settingsState, {
+        //         enableKMeans: false,
+        //         numColors: 8,
+        //     });
+        // },
     };
 }
 
@@ -59,14 +56,14 @@ export function useImageState() {
             imageState.width = image.width;
             imageState.height = image.height;
         },
-        clearImage: () => {
-            if (imageState.url) {
-                URL.revokeObjectURL(imageState.url);
-            }
-            imageState.image = null;
-            imageState.url = null;
-            imageState.width = -1;
-            imageState.height = -1;
-        },
+        // clearImage: () => {
+        //     if (imageState.url) {
+        //         URL.revokeObjectURL(imageState.url);
+        //     }
+        //     imageState.image = null;
+        //     imageState.url = null;
+        //     imageState.width = -1;
+        //     imageState.height = -1;
+        // },
     };
 }
