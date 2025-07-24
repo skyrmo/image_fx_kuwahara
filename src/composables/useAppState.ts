@@ -1,13 +1,22 @@
 import { reactive, readonly } from "vue";
 
-// Settings State
+// Settings State Interface
 export interface SettingsState {
     kernelSize: number;
     enableKMeans: boolean;
     numColors: number;
 }
 
-// Global state - these will be shared across components:
+// Image State Interface
+export interface ImageState {
+    url: string | null;
+    image: HTMLImageElement | null;
+    width: number;
+    height: number;
+}
+
+// Global state shared across components:
+
 // Settings State
 const settingsState = reactive<SettingsState>({
     kernelSize: 9,
@@ -15,8 +24,15 @@ const settingsState = reactive<SettingsState>({
     numColors: 8,
 });
 
-// Composables
-// Settings State
+// Image State
+const imageState = reactive<ImageState>({
+    url: null,
+    image: null,
+    width: -1,
+    height: -1,
+});
+
+// Settings State Composable
 export function useSettingsState() {
     return {
         settingsState: readonly(settingsState),
@@ -33,66 +49,7 @@ export function useSettingsState() {
     };
 }
 
-// App State
-export interface AppState {
-    // isLoading: boolean;
-    // isProcessing: boolean;
-    // error: string | null;
-    // webGPUSupported: boolean;
-    // showOriginal: boolean;
-}
-
-// Global state - these will be shared across components:
-// App State
-const appState = reactive<AppState>({
-    // isLoading: false,
-    // isProcessing: false,
-    // error: null,
-    // webGPUSupported: false,
-    // showOriginal: false,
-});
-
-// Composables
-// App State
-export function useAppState() {
-    return {
-        appState: readonly(appState),
-        // setLoading: (loading: boolean) => {
-        //     appState.isLoading = loading;
-        // },
-        // setProcessing: (processing: boolean) => {
-        //     appState.isProcessing = processing;
-        // },
-        // setError: (error: string | null) => {
-        //     appState.error = error;
-        // },
-        // setWebGPUSupported: (supported: boolean) => {
-        //     appState.webGPUSupported = supported;
-        // },
-        // setShowOriginal: (show: boolean) => {
-        //     appState.showOriginal = show;
-        // },
-    };
-}
-
-// Image State
-export interface ImageState {
-    url: string | null;
-    image: HTMLImageElement | null;
-    width: number;
-    height: number;
-}
-
-// Global state - these will be shared across components:
-// Image State
-const imageState = reactive<ImageState>({
-    url: null,
-    image: null,
-    width: -1,
-    height: -1,
-});
-
-// Composables
+// Image State Composable
 export function useImageState() {
     return {
         imageState: readonly(imageState),
