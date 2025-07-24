@@ -35,7 +35,7 @@ const imageState = reactive<ImageState>({
 // Settings State Composable
 export function useSettingsState() {
     return {
-        settingsState: readonly(settingsState),
+        settingsState,
         updateSettings: (newSettings: Partial<SettingsState>) => {
             Object.assign(settingsState, newSettings);
         },
@@ -52,7 +52,7 @@ export function useSettingsState() {
 // Image State Composable
 export function useImageState() {
     return {
-        imageState: readonly(imageState),
+        imageState,
         setImage: (image: HTMLImageElement, url: string) => {
             imageState.image = image;
             imageState.url = url;

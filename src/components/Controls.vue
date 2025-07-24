@@ -12,38 +12,51 @@
 
         <div class="setting-group">
             <label class="checkbox-label">
-                <input type="checkbox" />
+                <input type="checkbox" v-model="settingsState.enableKMeans" />
                 Enable K-means Color Quantization
             </label>
         </div>
 
+        <!-- Kernel Size controls -->
         <div class="setting-group">
-            <label for="kernel-size">
-                Kernel Size:
-                <span class="value">{{ 16 }}</span>
-            </label>
-            <input id="kernel-size" type="range" min="3" max="200" step="2" />
+            <label for="kernel-size"> Kernel Size: </label>
             <input
                 type="number"
                 min="3"
                 max="200"
                 step="2"
                 class="number-input"
+                v-model.number="settingsState.kernelSize"
+            />
+            <input
+                id="kernel-size"
+                type="range"
+                min="3"
+                max="200"
+                step="2"
+                v-model.number="settingsState.kernelSize"
             />
         </div>
 
+        <!-- Number of colours controls -->
         <!-- <div v-if="settings.enableKMeans" class="setting-group"> -->
         <div class="setting-group">
-            <label for="num-colors">
-                Number of Colors: <span class="value">{{ 8 }}</span>
-            </label>
-            <input id="num-colors" type="range" min="2" max="16" step="1" />
+            <label for="num-colors"> Number of Colors: </label>
             <input
                 class="number-input"
                 type="number"
                 min="2"
                 max="16"
                 step="1"
+                v-model.number="settingsState.numColors"
+            />
+            <input
+                id="num-colors"
+                type="range"
+                min="2"
+                max="16"
+                step="1"
+                v-model.number="settingsState.numColors"
             />
         </div>
     </main>
@@ -52,7 +65,7 @@
 <script setup lang="ts">
 // import { ref, onMounted, onUnmounted, watch } from "vue";
 import {
-    // useSettingsState,
+    useSettingsState,
     useImageState,
     // useAppState,
 } from "../composables/useAppState";
@@ -61,7 +74,7 @@ import {
 // const wgpuService = new WebGPUService();
 
 const { setImage } = useImageState();
-// const { settingsState } = useSettingsState();
+const { settingsState } = useSettingsState();
 
 const handleFileSelect = (event: Event) => {
     const input = event.target as HTMLInputElement;
