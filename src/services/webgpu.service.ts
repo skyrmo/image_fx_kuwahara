@@ -1,30 +1,27 @@
 // Import Shaders as raw text
 import kmeansShaderCode from "../shaders/kmeans.wgsl?raw";
-import { useSettingsState } from "../composables/useAppState";
-
-const { settingsState } = useSettingsState();
+import type { SettingsState } from "../composables/useAppState";
 
 export class WebGPUService {
-    private canvas: HTMLCanvasElement | undefined;
-    private device: GPUDevice | undefined;
-    private context: GPUCanvasContext | undefined;
-    private canvasFormat: any;
-    private currentTexture: GPUTexture | undefined;
-    // private settingsBuffer: GPUBuffer | undefined;
+    private device: GPUDevice | null = null;
+    private context: GPUCanvasContext | null = null;
+    private canvasFormat: GPUTextureFormat = "bgra8unorm";
 
-    private kmeansTexture: GPUTexture | undefined;
+    // Textures
+    private sourceTexture: GPUTexture | null = null;
+    private outputTexture: GPUTexture | null = null;
 
-    private kmeansPipeline: GPURenderPipeline | undefined;
-    private sampler: GPUSampler | undefined;
-    private kmeansNumColoursBuffer: GPUBuffer | undefined;
+    // Pipelines and resources
+    private kmeansPipeline: GPURenderPipeline | null = null;
+    private sampler: GPUSampler | null = null;
+    private settingsBuffer: GPUBuffer | null = null;
 
     async initialize(canvas: HTMLCanvasElement): Promise<void> {
         if (!navigator.gpu) {
-            throw new Error("WebGPU not supported");
+            throw new Error("WebGPU is not supported in this browser");
         }
 
-        this.canvas = canvas;
-
+        // Request adapter and device
         const adapter = await navigator.gpu.requestAdapter();
         if (!adapter) {
             throw new Error("No appropriate GPUAdapter found");
@@ -32,9 +29,10 @@ export class WebGPUService {
 
         this.device = await adapter.requestDevice();
 
-        this.context = canvas.getContext("webgpu") as GPUCanvasContext;
+        // Set up canvas context
+        this.context = canvas.getContext("webgpu");
         if (!this.context) {
-            throw new Error("Could not get WebGPU context");
+            throw new Error("Failed to get WebGPU context");
         }
 
         this.canvasFormat = navigator.gpu.getPreferredCanvasFormat();
@@ -46,17 +44,27 @@ export class WebGPUService {
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_DST,
         });
 
-        this.kmeansNumColoursBuffer = this.device.createBuffer({
-            size: 16, // numColors (i32) + 3 padding (i32)
+        await this.initializeResources();
+    }
+
+    private async initializeResources(): Promise<void> {
+        if (!this.device) throw new Error("Device not initialized");
+
+        // Create settings buffer
+        this.settingsBuffer = this.device.createBuffer({
+            size: 16, // 4 * 4 bytes for settings
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
 
-        // Create cached sampler
+        // Create sampler
         this.sampler = this.device.createSampler({
             magFilter: "linear",
             minFilter: "linear",
+            addressModeU: "clamp-to-edge",
+            addressModeV: "clamp-to-edge",
         });
 
+        // Create render pipeline
         this.kmeansPipeline = this.device.createRenderPipeline({
             layout: "auto",
             vertex: {
@@ -76,127 +84,84 @@ export class WebGPUService {
                 topology: "triangle-list",
             },
         });
-
-        this.updateSettings();
     }
 
-    async updateSettings() {
-        if (!this.device || !this.kmeansNumColoursBuffer) {
-            console.error("updateSettings: Missing device or settings buffer", {
-                device: !!this.device,
-                settingsBuffer: !!this.kmeansNumColoursBuffer,
-            });
-            return;
+    async loadImage(image: HTMLImageElement): Promise<void> {
+        if (!this.device || !this.context) {
+            throw new Error("WebGPU not initialized");
         }
 
-        try {
-            // Update K-means buffer
-            const kmeansData = new ArrayBuffer(16);
-            const kmeansView = new Int32Array(kmeansData);
-            kmeansView[0] = settingsState.numColors;
-            kmeansView[1] = 0; // padding
-            kmeansView[2] = 0; // padding
-            kmeansView[3] = 0; // padding
-            this.device.queue.writeBuffer(
-                this.kmeansNumColoursBuffer!,
-                0,
-                kmeansData,
-            );
+        const canvas = this.context.canvas as HTMLCanvasElement;
+        canvas.width = image.width;
+        canvas.height = image.height;
 
-            // await this.processKuwahara(this.currentTexture);
-        } catch (error) {
-            console.error("Error updating settings:", error);
-            console.error("Stack trace:", (error as Error).stack);
-            throw new Error(
-                `Failed to update filter settings: ${(error as Error).message}`,
-            );
-        }
-    }
-
-    private async createTextures(image: HTMLImageElement) {
-        if (!this.device) return;
-
-        const width = image.width;
-        const height = image.height;
+        // Create source texture from image
         const imageBitmap = await createImageBitmap(image);
 
-        this.currentTexture = this.device.createTexture({
-            size: [width, height],
+        this.sourceTexture = this.device.createTexture({
+            size: [image.width, image.height],
             format: this.canvasFormat,
             usage:
                 GPUTextureUsage.TEXTURE_BINDING |
                 GPUTextureUsage.COPY_DST |
-                GPUTextureUsage.COPY_SRC |
                 GPUTextureUsage.RENDER_ATTACHMENT,
         });
 
         this.device.queue.copyExternalImageToTexture(
             { source: imageBitmap },
-            { texture: this.currentTexture },
-            [imageBitmap.width, imageBitmap.height],
+            { texture: this.sourceTexture },
+            [image.width, image.height],
         );
 
-        // Create texture for K-means
-        this.kmeansTexture = this.device.createTexture({
-            size: [width, height],
-            format: this.canvasFormat,
-            usage:
-                GPUTextureUsage.TEXTURE_BINDING |
-                GPUTextureUsage.COPY_DST |
-                GPUTextureUsage.RENDER_ATTACHMENT |
-                GPUTextureUsage.COPY_SRC,
-        });
+        // Initial render
+        await this.render();
     }
 
-    async initImage(image: HTMLImageElement) {
-        if (!this.device || !this.context || !this.canvas) {
+    async updateSettings(settings: SettingsState): Promise<void> {
+        if (!this.device || !this.settingsBuffer) {
             throw new Error("WebGPU not initialized");
         }
 
-        this.canvas.width = image.width;
-        this.canvas.height = image.height;
+        // Update settings buffer
+        const settingsData = new ArrayBuffer(16);
+        const settingsView = new Int32Array(settingsData);
+        settingsView[0] = settings.numColors;
+        settingsView[1] = settings.enableKMeans ? 1 : 0;
 
-        await this.createTextures(image);
-        if (!this.currentTexture) {
-            throw new Error("Failed to create texture from image");
+        this.device.queue.writeBuffer(this.settingsBuffer, 0, settingsData);
+
+        // Re-render with new settings
+        if (this.sourceTexture) {
+            await this.render();
         }
-
-        await this.applyKMeans(this.currentTexture);
     }
 
-    // Apply K-means color quantization
-    private async applyKMeans(
-        inputTexture: GPUTexture,
-        outputTexture?: GPUTexture,
-    ) {
+    private async render(): Promise<void> {
         if (
             !this.device ||
+            !this.context ||
+            !this.sourceTexture ||
             !this.kmeansPipeline ||
-            !this.kmeansTexture ||
-            !this.kmeansNumColoursBuffer ||
-            !this.sampler
-        )
+            !this.sampler ||
+            !this.settingsBuffer
+        ) {
             return;
+        }
 
         const bindGroup = this.device.createBindGroup({
             layout: this.kmeansPipeline.getBindGroupLayout(0),
             entries: [
                 { binding: 0, resource: this.sampler },
-                { binding: 1, resource: inputTexture.createView() },
-                {
-                    binding: 2,
-                    resource: { buffer: this.kmeansNumColoursBuffer },
-                },
+                { binding: 1, resource: this.sourceTexture.createView() },
+                { binding: 2, resource: { buffer: this.settingsBuffer } },
             ],
         });
 
         const commandEncoder = this.device.createCommandEncoder();
-        const passEncoder = commandEncoder.beginRenderPass({
+        const renderPass = commandEncoder.beginRenderPass({
             colorAttachments: [
                 {
-                    view: (
-                        outputTexture || this.context!.getCurrentTexture()
-                    ).createView(),
+                    view: this.context.getCurrentTexture().createView(),
                     clearValue: { r: 0, g: 0, b: 0, a: 1 },
                     loadOp: "clear",
                     storeOp: "store",
@@ -204,43 +169,28 @@ export class WebGPUService {
             ],
         });
 
-        passEncoder.setPipeline(this.kmeansPipeline);
-        passEncoder.setBindGroup(0, bindGroup);
-        passEncoder.draw(6);
-        passEncoder.end();
+        renderPass.setPipeline(this.kmeansPipeline);
+        renderPass.setBindGroup(0, bindGroup);
+        renderPass.draw(6); // Full-screen quad
+        renderPass.end();
 
         this.device.queue.submit([commandEncoder.finish()]);
         await this.device.queue.onSubmittedWorkDone();
     }
 
-    // // Copy texture directly to canvas (no processing)
-    // private async copyToCanvas(inputTexture: GPUTexture) {
-    //     if (!this.device || !this.context) return;
+    destroy(): void {
+        this.sourceTexture?.destroy();
+        this.outputTexture?.destroy();
+        this.settingsBuffer?.destroy();
 
-    //     try {
-    //         const commandEncoder = this.device.createCommandEncoder();
-    //         commandEncoder.copyTextureToTexture(
-    //             { texture: inputTexture },
-    //             { texture: this.context.getCurrentTexture() },
-    //             [this.canvas?.width || 0, this.canvas?.height || 0],
-    //         );
-    //         this.device.queue.submit([commandEncoder.finish()]);
-    //         await this.device.queue.onSubmittedWorkDone();
-    //     } catch (error) {
-    //         console.error("Error copying to canvas:", error);
-    //         throw new Error("Failed to copy image to canvas");
-    //     }
-    // }
-    //
+        this.sourceTexture = null;
+        this.outputTexture = null;
+        this.settingsBuffer = null;
+        this.kmeansPipeline = null;
+        this.sampler = null;
 
-    // // Clean up any other resources
-    // destroy() {
-    //     this.kmeansPipeline = null;
-    //     this.sampler = null;
-    //     this.kmeansBuffer = null;
-
-    //     if (this.device) {
-    //         this.device.destroy();
-    //     }
-    // }
+        this.device?.destroy();
+        this.device = null;
+        this.context = null;
+    }
 }

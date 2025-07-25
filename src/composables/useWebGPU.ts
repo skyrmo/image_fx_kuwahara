@@ -1,86 +1,113 @@
-import { ref, onUnmounted } from "vue";
+import { ref, onUnmounted, watch, readonly } from "vue";
+import { useImageState, useSettingsState } from "./useAppState";
 import { WebGPUService } from "../services/webgpu.service";
 
+let webGPUInstance: WebGPUService | null;
+
 export function useWebGPU() {
-    const service = ref<WebGPUService>();
+    const { imageState } = useImageState();
+    const { settingsState } = useSettingsState();
+
     const isInitialized = ref(false);
     const isLoading = ref(false);
     const error = ref<string | null>(null);
+    const canvas = ref<HTMLCanvasElement>();
 
-    const initialize = async (canvas: HTMLCanvasElement) => {
+    const initialize = async (canvasElement: HTMLCanvasElement) => {
         try {
             isLoading.value = true;
             error.value = null;
+            canvas.value = canvasElement;
 
-            service.value = new WebGPUService();
+            // Create singleton instance
+            if (!webGPUInstance) {
+                webGPUInstance = new WebGPUService();
+            }
 
-            await service.value.initialize(canvas);
-
+            await webGPUInstance.initialize(canvasElement);
             isInitialized.value = true;
+
+            // Set up watchers after initialization
+            setupWatchers();
         } catch (err) {
-            error.value =
+            const message =
                 err instanceof Error
                     ? err.message
                     : "Failed to initialize WebGPU";
-
+            error.value = message;
             console.error("WebGPU initialization failed:", err);
-        } finally {
-            isLoading.value = false;
-        }
-    };
-
-    const processImage = async (image: HTMLImageElement) => {
-        if (!service.value || !isInitialized.value) {
-            throw new Error("WebGPU service not initialized");
-        }
-
-        try {
-            isLoading.value = true;
-            error.value = null;
-            await service.value.initImage(image);
-        } catch (err) {
-            error.value =
-                err instanceof Error ? err.message : "Failed to process image";
             throw err;
         } finally {
             isLoading.value = false;
         }
     };
 
-    const updateSettings = async () => {
-        if (!service.value || !isInitialized.value) return;
+    const setupWatchers = () => {
+        // Watch for image changes
+        watch(
+            () => imageState.image,
+            async (newImage) => {
+                if (newImage && webGPUInstance && isInitialized.value) {
+                    try {
+                        isLoading.value = true;
+                        error.value = null;
+                        await webGPUInstance.loadImage(newImage);
+                    } catch (err) {
+                        error.value =
+                            err instanceof Error
+                                ? err.message
+                                : "Failed to load image";
+                    } finally {
+                        isLoading.value = false;
+                    }
+                }
+            },
+        );
 
-        try {
-            error.value = null;
-            await service.value.updateSettings();
-        } catch (err) {
-            error.value =
-                err instanceof Error
-                    ? err.message
-                    : "Failed to update settings";
-            console.error("Settings update failed:", err);
-        }
+        // Watch for settings changes
+        watch(
+            settingsState,
+            async () => {
+                if (imageState.image && webGPUInstance && isInitialized.value) {
+                    try {
+                        await nextTick();
+                        await webGPUInstance.updateSettings(settingsState);
+                    } catch (err) {
+                        error.value =
+                            err instanceof Error
+                                ? err.message
+                                : "Failed to update settings";
+                    }
+                }
+            },
+            { deep: true },
+        );
     };
 
-    const cleanup = () => {
-        if (service.value) {
-            service.value.destroy?.();
-            service.value = undefined;
+    const destroy = () => {
+        if (webGPUInstance) {
+            webGPUInstance.destroy();
+            webGPUInstance = null;
         }
         isInitialized.value = false;
         error.value = null;
     };
 
     // Cleanup on unmount
-    onUnmounted(cleanup);
+    onUnmounted(() => {
+        // Only destroy if this is the last component using WebGPU
+        // In a real app, you might want more sophisticated reference counting
+        destroy();
+    });
 
     return {
+        // Reactive state
         isInitialized: readonly(isInitialized),
         isLoading: readonly(isLoading),
         error: readonly(error),
+
+        // Actions
         initialize,
-        processImage,
-        updateSettings,
-        cleanup,
+        destroy,
     };
 }
