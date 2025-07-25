@@ -13,45 +13,39 @@ import { WebGPUService } from "../services/webgpu.service";
 const { imageState } = useImageState();
 const { settingsState } = useSettingsState();
 
-// console.log(imageState);
-// console.log(settingsState);
-
 const canvasWGPU = ref<HTMLCanvasElement>();
 const wgpuService = new WebGPUService();
-// console.log(wgpuService);
 
 // Initialize WebGPU when canvas is mounted
 onMounted(async () => {
-    // console.log(canvasWGPU.value);
     if (canvasWGPU.value) {
         await wgpuService.initialize(canvasWGPU.value);
-        console.log("On mount", wgpuService);
     }
 });
 
-// // Watch for image changes
-// watch(
-//     () => imageState.image,
-//     async (newImage) => {
-//         if (newImage) {
-//             await wgpuService.initImage(imageState.image!);
-//         }
-//     },
-// );
+// Watch for image changes
+watch(
+    () => imageState.image,
+    async (newImage) => {
+        if (newImage) {
+            await wgpuService.initImage(imageState.image!);
+        }
+    },
+);
 
-// // Watch for settings changes
-// watch(
-//     settingsState,
-//     async () => {
-//         if (imageState.image) {
-//             // Use nextTick to handle async in watcher
-//             nextTick(async () => {
-//                 await wgpuService.updateSettings();
-//             });
-//         }
-//     },
-//     { deep: true },
-// );
+// Watch for settings changes
+watch(
+    settingsState,
+    async () => {
+        if (imageState.image) {
+            // Use nextTick to handle async in watcher
+            nextTick(async () => {
+                await wgpuService.updateSettings();
+            });
+        }
+    },
+    { deep: true },
+);
 </script>
 
 <style scoped>

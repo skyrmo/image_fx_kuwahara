@@ -17,29 +17,7 @@
             </label>
         </div>
 
-        <!-- Kernel Size controls -->
-        <div class="setting-group">
-            <label for="kernel-size"> Kernel Size: </label>
-            <input
-                type="number"
-                min="3"
-                max="200"
-                step="2"
-                class="number-input"
-                v-model.number="settingsState.kernelSize"
-            />
-            <input
-                id="kernel-size"
-                type="range"
-                min="3"
-                max="200"
-                step="2"
-                v-model.number="settingsState.kernelSize"
-            />
-        </div>
-
         <!-- Number of colours controls -->
-        <!-- <div v-if="settings.enableKMeans" class="setting-group"> -->
         <div class="setting-group">
             <label for="num-colors"> Number of Colors: </label>
             <input
@@ -84,7 +62,6 @@ const loadImage = async (file: File): Promise<void> => {
 
         image.onload = () => {
             setImage(image, url);
-            console.log(image);
             resolve();
         };
 

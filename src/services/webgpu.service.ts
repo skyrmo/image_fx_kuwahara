@@ -18,18 +18,7 @@ export class WebGPUService {
     private sampler: GPUSampler | undefined;
     private kmeansNumColoursBuffer: GPUBuffer | undefined;
 
-    // // Clean up any other resources
-    // destroy() {
-    //     this.kmeansPipeline = null;
-    //     this.sampler = null;
-    //     this.kmeansBuffer = null;
-
-    //     if (this.device) {
-    //         this.device.destroy();
-    //     }
-    // }
-
-    async initialize(canvas: HTMLCanvasElement): Promise<boolean> {
+    async initialize(canvas: HTMLCanvasElement): Promise<void> {
         if (!navigator.gpu) {
             throw new Error("WebGPU not supported");
         }
@@ -68,17 +57,6 @@ export class WebGPUService {
             minFilter: "linear",
         });
 
-        this.initializePipelines();
-
-        this.updateSettings();
-
-        return true;
-    }
-
-    private initializePipelines() {
-        if (!this.device) return;
-
-        // K-means pipeline
         this.kmeansPipeline = this.device.createRenderPipeline({
             layout: "auto",
             vertex: {
@@ -98,6 +76,8 @@ export class WebGPUService {
                 topology: "triangle-list",
             },
         });
+
+        this.updateSettings();
     }
 
     async updateSettings() {
@@ -133,89 +113,56 @@ export class WebGPUService {
         }
     }
 
-    // private async createTextures(image: HTMLImageElement) {
-    //     if (!this.device) return;
+    private async createTextures(image: HTMLImageElement) {
+        if (!this.device) return;
 
-    //     const width = image.width;
-    //     const height = image.height;
+        const width = image.width;
+        const height = image.height;
+        const imageBitmap = await createImageBitmap(image);
 
-    //     const imageBitmap = await createImageBitmap(image);
+        this.currentTexture = this.device.createTexture({
+            size: [width, height],
+            format: this.canvasFormat,
+            usage:
+                GPUTextureUsage.TEXTURE_BINDING |
+                GPUTextureUsage.COPY_DST |
+                GPUTextureUsage.COPY_SRC |
+                GPUTextureUsage.RENDER_ATTACHMENT,
+        });
 
-    //     this.currentTexture = this.device.createTexture({
-    //         size: [width, height],
-    //         format: this.canvasFormat,
-    //         usage:
-    //             GPUTextureUsage.TEXTURE_BINDING |
-    //             GPUTextureUsage.COPY_DST |
-    //             GPUTextureUsage.COPY_SRC |
-    //             GPUTextureUsage.RENDER_ATTACHMENT,
-    //     });
+        this.device.queue.copyExternalImageToTexture(
+            { source: imageBitmap },
+            { texture: this.currentTexture },
+            [imageBitmap.width, imageBitmap.height],
+        );
 
-    //     this.device.queue.copyExternalImageToTexture(
-    //         { source: imageBitmap },
-    //         { texture: this.currentTexture },
-    //         [imageBitmap.width, imageBitmap.height],
-    //     );
+        // Create texture for K-means
+        this.kmeansTexture = this.device.createTexture({
+            size: [width, height],
+            format: this.canvasFormat,
+            usage:
+                GPUTextureUsage.TEXTURE_BINDING |
+                GPUTextureUsage.COPY_DST |
+                GPUTextureUsage.RENDER_ATTACHMENT |
+                GPUTextureUsage.COPY_SRC,
+        });
+    }
 
-    //     // Create texture for K-means
-    //     this.kmeansTexture = this.device.createTexture({
-    //         size: [width, height],
-    //         format: this.canvasFormat,
-    //         usage:
-    //             GPUTextureUsage.TEXTURE_BINDING |
-    //             GPUTextureUsage.COPY_DST |
-    //             GPUTextureUsage.RENDER_ATTACHMENT |
-    //             GPUTextureUsage.COPY_SRC,
-    //     });
-    // }
+    async initImage(image: HTMLImageElement) {
+        if (!this.device || !this.context || !this.canvas) {
+            throw new Error("WebGPU not initialized");
+        }
 
-    // async initImage(image: HTMLImageElement) {
-    //     if (!this.device || !this.context || !this.canvas) {
-    //         throw new Error("WebGPU not initialized");
-    //     }
+        this.canvas.width = image.width;
+        this.canvas.height = image.height;
 
-    //     try {
-    //         // Validate image dimensions
-    //         if (image.width <= 0 || image.height <= 0) {
-    //             throw new Error("Invalid image dimensions");
-    //         }
+        await this.createTextures(image);
+        if (!this.currentTexture) {
+            throw new Error("Failed to create texture from image");
+        }
 
-    //         // Check if image is too large
-    //         const maxDimension = 4096; // Reasonable limit
-    //         if (image.width > maxDimension || image.height > maxDimension) {
-    //             throw new Error(
-    //                 `Image too large. Maximum dimension is ${maxDimension}px`,
-    //             );
-    //         }
-
-    //         this.canvas.width = image.width;
-    //         this.canvas.height = image.height;
-
-    //         await this.createTextures(image);
-
-    //         if (!this.currentTexture) {
-    //             throw new Error("Failed to create texture from image");
-    //         }
-
-    //         await this.processKuwahara(this.currentTexture);
-    //     } catch (error) {
-    //         console.error("Error initializing image:", error);
-    //         throw error instanceof Error
-    //             ? error
-    //             : new Error("Failed to initialize image");
-    //     }
-    // }
-
-    // private async processKuwahara(inputTexture: GPUTexture) {
-    //     if (!this.device || !this.context || !this.settingsBuffer) return;
-
-    //     try {
-    //         await this.applyKMeans(inputTexture, this.kmeansTexture!);
-    //     } catch (error) {
-    //         console.error("Error processing Kmeans filter:", error);
-    //         throw new Error("Failed to process Kmeans filter");
-    //     }
-    // }
+        await this.applyKMeans(this.currentTexture);
+    }
 
     // Apply K-means color quantization
     private async applyKMeans(
@@ -231,44 +178,39 @@ export class WebGPUService {
         )
             return;
 
-        try {
-            const bindGroup = this.device.createBindGroup({
-                layout: this.kmeansPipeline.getBindGroupLayout(0),
-                entries: [
-                    { binding: 0, resource: this.sampler },
-                    { binding: 1, resource: inputTexture.createView() },
-                    {
-                        binding: 2,
-                        resource: { buffer: this.kmeansNumColoursBuffer },
-                    },
-                ],
-            });
+        const bindGroup = this.device.createBindGroup({
+            layout: this.kmeansPipeline.getBindGroupLayout(0),
+            entries: [
+                { binding: 0, resource: this.sampler },
+                { binding: 1, resource: inputTexture.createView() },
+                {
+                    binding: 2,
+                    resource: { buffer: this.kmeansNumColoursBuffer },
+                },
+            ],
+        });
 
-            const commandEncoder = this.device.createCommandEncoder();
-            const passEncoder = commandEncoder.beginRenderPass({
-                colorAttachments: [ 
-                    {
-                        view: (
-                            outputTexture || this.context!.getCurrentTexture()
-                        ).createView(),
-                        clearValue: { r: 0, g: 0, b: 0, a: 1 },
-                        loadOp: "clear",
-                        storeOp: "store",
-                    },
-                ],
-            });
+        const commandEncoder = this.device.createCommandEncoder();
+        const passEncoder = commandEncoder.beginRenderPass({
+            colorAttachments: [
+                {
+                    view: (
+                        outputTexture || this.context!.getCurrentTexture()
+                    ).createView(),
+                    clearValue: { r: 0, g: 0, b: 0, a: 1 },
+                    loadOp: "clear",
+                    storeOp: "store",
+                },
+            ],
+        });
 
-            passEncoder.setPipeline(this.kmeansPipeline);
-            passEncoder.setBindGroup(0, bindGroup);
-            passEncoder.draw(6);
-            passEncoder.end();
+        passEncoder.setPipeline(this.kmeansPipeline);
+        passEncoder.setBindGroup(0, bindGroup);
+        passEncoder.draw(6);
+        passEncoder.end();
 
-            this.device.queue.submit([commandEncoder.finish()]);
-            await this.device.queue.onSubmittedWorkDone();
-        } catch (error) {
-            console.error("Error applying K-means:", error);
-            throw new Error("Failed to apply K-means quantization");
-        }
+        this.device.queue.submit([commandEncoder.finish()]);
+        await this.device.queue.onSubmittedWorkDone();
     }
 
     // // Copy texture directly to canvas (no processing)
@@ -287,6 +229,18 @@ export class WebGPUService {
     //     } catch (error) {
     //         console.error("Error copying to canvas:", error);
     //         throw new Error("Failed to copy image to canvas");
+    //     }
+    // }
+    //
+
+    // // Clean up any other resources
+    // destroy() {
+    //     this.kmeansPipeline = null;
+    //     this.sampler = null;
+    //     this.kmeansBuffer = null;
+
+    //     if (this.device) {
+    //         this.device.destroy();
     //     }
     // }
 }
