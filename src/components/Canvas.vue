@@ -28,9 +28,7 @@ onMounted(async () => {
         // If an image is already loaded in state, load it into WebGPU
         if (imageState.image && isInitialized.value) {
             try {
-                console.log(
-                    "Canvas: Loading existing image after initialization...",
-                );
+                // console.log("Canvas: Loading existing image after init...");
                 await loadImage(imageState.image);
             } catch (err) {
                 console.error("Canvas: Failed to load existing image:", err);
@@ -43,16 +41,16 @@ onMounted(async () => {
 watch(
     () => imageState.image,
     async (newImage) => {
-        console.log("Canvas: Image state changed:", {
-            newImage: !!newImage,
-            isInitialized: isInitialized.value,
-            imageWidth: newImage?.width,
-            imageHeight: newImage?.height,
-        });
+        // console.log("Canvas: Image state changed:", {
+        //     newImage: !!newImage,
+        //     isInitialized: isInitialized.value,
+        //     imageWidth: newImage?.width,
+        //     imageHeight: newImage?.height,
+        // });
 
         if (newImage && isInitialized.value) {
             try {
-                console.log("Canvas: Loading image into WebGPU...");
+                // console.log("Canvas: Loading image into WebGPU...");
                 await loadImage(newImage);
             } catch (err) {
                 console.error("Canvas: Failed to load image:", err);

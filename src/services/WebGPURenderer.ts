@@ -16,31 +16,31 @@ export class WebGPURenderer {
     private effects: Map<string, ActiveEffect> = new Map();
 
     async initialize(canvas: HTMLCanvasElement): Promise<void> {
-        console.log("WebGPURenderer: Starting initialize...");
+        // console.log("WebGPURenderer: Starting initialize...");
 
         if (!navigator.gpu) {
-            console.error("WebGPURenderer: WebGPU not supported");
+            // console.error("WebGPURenderer: WebGPU not supported");
             throw new Error("WebGPU is not supported");
         }
 
-        console.log("WebGPURenderer: Requesting adapter...");
+        // console.log("WebGPURenderer: Requesting adapter...");
         const adapter = await navigator.gpu.requestAdapter();
         if (!adapter) {
-            console.error("WebGPURenderer: No adapter found");
+            // console.error("WebGPURenderer: No adapter found");
             throw new Error("No GPU adapter found");
         }
 
-        console.log("WebGPURenderer: Requesting device...");
+        // console.log("WebGPURenderer: Requesting device...");
         this.device = await adapter.requestDevice();
         this.context = canvas.getContext("webgpu");
 
         if (!this.context) {
-            console.error("WebGPURenderer: Failed to get WebGPU context");
+            // console.error("WebGPURenderer: Failed to get WebGPU context");
             throw new Error("Failed to get WebGPU context");
         }
 
         this.canvasFormat = navigator.gpu.getPreferredCanvasFormat();
-        console.log("WebGPURenderer: Canvas format:", this.canvasFormat);
+        // console.log("WebGPURenderer: Canvas format:", this.canvasFormat);
 
         this.context.configure({
             device: this.device,
@@ -49,43 +49,43 @@ export class WebGPURenderer {
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_DST,
         });
 
-        console.log("WebGPURenderer: Initialize complete");
+        // console.log("WebGPURenderer: Initialize complete");
     }
 
     async loadImage(image: HTMLImageElement): Promise<void> {
-        console.log(
-            "WebGPURenderer: Loading image...",
-            image.width,
-            "x",
-            image.height,
-        );
+        // console.log(
+        //     "WebGPURenderer: Loading image...",
+        //     image.width,
+        //     "x",
+        //     image.height,
+        // );
 
         if (!this.device || !this.context) {
-            console.error("WebGPURenderer: Not initialized");
+            // console.error("WebGPURenderer: Not initialized");
             throw new Error("Renderer not initialized");
         }
 
         const canvas = this.context.canvas as HTMLCanvasElement;
-        console.log(
-            "WebGPURenderer: Setting canvas size to",
-            image.width,
-            "x",
-            image.height,
-        );
+        // console.log(
+        //     "WebGPURenderer: Setting canvas size to",
+        //     image.width,
+        //     "x",
+        //     image.height,
+        // );
         canvas.width = image.width;
         canvas.height = image.height;
 
         // Clean up previous texture if it exists
         if (this.sourceTexture) {
-            console.log("WebGPURenderer: Destroying previous texture");
+            // console.log("WebGPURenderer: Destroying previous texture");
             this.sourceTexture.destroy();
         }
 
         // Create texture from image
-        console.log("WebGPURenderer: Creating image bitmap...");
+        // console.log("WebGPURenderer: Creating image bitmap...");
         const imageBitmap = await createImageBitmap(image);
 
-        console.log("WebGPURenderer: Creating texture...");
+        // console.log("WebGPURenderer: Creating texture...");
         this.sourceTexture = this.device.createTexture({
             size: [image.width, image.height],
             format: this.canvasFormat,
@@ -96,14 +96,14 @@ export class WebGPURenderer {
                 GPUTextureUsage.RENDER_ATTACHMENT,
         });
 
-        console.log("WebGPURenderer: Copying image to texture...");
+        // console.log("WebGPURenderer: Copying image to texture...");
         this.device.queue.copyExternalImageToTexture(
             { source: imageBitmap },
             { texture: this.sourceTexture },
             [image.width, image.height],
         );
 
-        console.log("WebGPURenderer: Rendering...");
+        // console.log("WebGPURenderer: Rendering...");
         await this.render();
     }
 
@@ -159,7 +159,7 @@ export class WebGPURenderer {
     // }
 
     private async render(): Promise<void> {
-        console.log("WebGPURenderer: Starting render...");
+        // console.log("WebGPURenderer: Starting render...");
 
         if (!this.device || !this.context || !this.sourceTexture) {
             console.log("WebGPURenderer: Missing required components:", {
@@ -174,17 +174,17 @@ export class WebGPURenderer {
             (e) => e.enabled,
         );
 
-        console.log(
-            "WebGPURenderer: Number of enabled effects:",
-            enabledEffects.length,
-        );
+        // console.log(
+        //     "WebGPURenderer: Number of enabled effects:",
+        //     enabledEffects.length,
+        // );
 
         // If no effects, copy source directly to canvas
         if (enabledEffects.length === 0) {
             try {
-                console.log(
-                    "WebGPURenderer: Copying texture directly to canvas...",
-                );
+                // console.log(
+                //     "WebGPURenderer: Copying texture directly to canvas...",
+                // );
                 const encoder = this.device.createCommandEncoder();
                 encoder.copyTextureToTexture(
                     { texture: this.sourceTexture },
@@ -193,7 +193,7 @@ export class WebGPURenderer {
                 );
                 this.device.queue.submit([encoder.finish()]);
                 await this.device.queue.onSubmittedWorkDone();
-                console.log("WebGPURenderer: Render complete");
+                // console.log("WebGPURenderer: Render complete");
             } catch (error) {
                 console.error("WebGPURenderer: Failed to render image:", error);
                 throw error;

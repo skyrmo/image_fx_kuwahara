@@ -13,17 +13,17 @@ export function useWebGPU() {
 
     const initialize = async (canvas: HTMLCanvasElement) => {
         try {
-            console.log("WebGPU: Starting initialization...");
+            // console.log("WebGPU: Starting initialization...");
             isLoading.value = true;
             error.value = null;
 
             if (!renderer) {
                 renderer = new WebGPURenderer();
-                console.log("WebGPU: Created new renderer");
+                // console.log("WebGPU: Created new renderer");
             }
 
             await renderer.initialize(canvas);
-            console.log("WebGPU: Renderer initialized successfully");
+            // console.log("WebGPU: Renderer initialized successfully");
             isInitialized.value = true;
         } catch (err) {
             console.error("WebGPU: Initialization failed:", err);
@@ -42,15 +42,15 @@ export function useWebGPU() {
         }
 
         try {
-            console.log(
-                "WebGPU: Loading image...",
-                image.width,
-                "x",
-                image.height,
-            );
+            // console.log(
+            //     "WebGPU: Loading image...",
+            //     image.width,
+            //     "x",
+            //     image.height,
+            // );
             isLoading.value = true;
             await renderer.loadImage(image);
-            console.log("WebGPU: Image loaded successfully");
+            // console.log("WebGPU: Image loaded successfully");
         } catch (err) {
             console.error("WebGPU: Failed to load image:", err);
             error.value =

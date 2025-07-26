@@ -47,15 +47,16 @@ const { setImage } = useImageState();
 const { settingsState } = useSettingsState();
 
 const handleFileSelect = (event: Event) => {
-    console.log("Controls: File selected");
+    // console.log("Controls: File selected");
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (file) {
-        console.log("Controls: File details:", {
-            name: file.name,
-            type: file.type,
-            size: file.size,
-        });
+        // console.log("Controls: File details:",
+        //     {
+        //     name: file.name,
+        //     type: file.type,
+        //     size: file.size,
+        // });
         loadImage(file).catch((error) => {
             console.error("Controls: Error loading image:", error);
             // Reset file input
@@ -67,7 +68,7 @@ const handleFileSelect = (event: Event) => {
 };
 
 const loadImage = async (file: File): Promise<void> => {
-    console.log("Controls: Starting to load image file:", file.name);
+    // console.log("Controls: Starting to load image file:", file.name);
     return new Promise((resolve, reject) => {
         // Validate file type
         if (!file.type.startsWith("image/")) {
@@ -76,19 +77,19 @@ const loadImage = async (file: File): Promise<void> => {
             return;
         }
 
-        console.log("Controls: Creating image element...");
+        // console.log("Controls: Creating image element...");
         const image = new Image();
         const url = URL.createObjectURL(file);
-        console.log("Controls: Object URL created:", url);
+        // console.log("Controls: Object URL created:", url);
         image.src = url;
 
         image.onload = () => {
             try {
-                console.log(
-                    `Controls: Image loaded successfully: ${image.width}x${image.height}`,
-                );
+                // console.log(
+                //     `Controls: Image loaded successfully: ${image.width}x${image.height}`,
+                // );
                 setImage(image, url);
-                console.log("Controls: Image set in state");
+                // console.log("Controls: Image set in state");
                 resolve();
             } catch (error) {
                 console.error("Controls: Error setting image:", error);
