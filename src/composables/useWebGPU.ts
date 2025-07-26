@@ -1,4 +1,4 @@
-import { ref, onUnmounted, watch, readonly } from "vue";
+import { ref, onUnmounted, watch, readonly, nextTick } from "vue";
 import { useImageState, useSettingsState } from "./useAppState";
 import { WebGPUService } from "../services/webgpu.service";
 

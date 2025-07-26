@@ -1,7 +1,14 @@
 <template>
     <main class="canvas-container">
-        <canvas ref="canvasWGPU" class="canvas-wgpu"></canvas>
-        <!-- <img :src="imageState.url || undefined" alt="User selected image" /> -->
+        <div v-if="error" class="error-message">
+            {{ error }}
+        </div>
+        <div v-else-if="isLoading" class="loading-message">Loading...</div>
+        <canvas
+            ref="canvasElement"
+            class="canvas-wgpu"
+            :class="{ 'canvas-ready': isInitialized }"
+        />
     </main>
 </template>
 
@@ -26,6 +33,5 @@ onMounted(async () => {
     display: flex;
     align-items: center;
     justify-content: center;
-    /* border: solid 1px red; */
 }
 </style>
