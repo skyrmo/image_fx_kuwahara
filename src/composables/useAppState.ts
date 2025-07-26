@@ -15,7 +15,6 @@ export interface ImageState {
 }
 
 // Global state shared across components:
-
 // Settings State
 const settingsState = reactive<SettingsState>({
     enableKMeans: false,
@@ -37,12 +36,6 @@ export function useSettingsState() {
         updateSettings: (newSettings: Partial<SettingsState>) => {
             Object.assign(settingsState, newSettings);
         },
-        // resetSettings: () => {
-        //     Object.assign(settingsState, {
-        //         enableKMeans: false,
-        //         numColors: 8,
-        //     });
-        // },
     };
 }
 
@@ -56,14 +49,5 @@ export function useImageState() {
             imageState.width = image.width;
             imageState.height = image.height;
         },
-        // clearImage: () => {
-        //     if (imageState.url) {
-        //         URL.revokeObjectURL(imageState.url);
-        //     }
-        //     imageState.image = null;
-        //     imageState.url = null;
-        //     imageState.width = -1;
-        //     imageState.height = -1;
-        // },
     };
 }

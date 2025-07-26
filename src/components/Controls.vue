@@ -47,27 +47,60 @@ const { setImage } = useImageState();
 const { settingsState } = useSettingsState();
 
 const handleFileSelect = (event: Event) => {
+    console.log("Controls: File selected");
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (file) {
-        loadImage(file).catch(console.error);
+        console.log("Controls: File details:", {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+        });
+        loadImage(file).catch((error) => {
+            console.error("Controls: Error loading image:", error);
+            // Reset file input
+            input.value = "";
+        });
+    } else {
+        console.log("Controls: No file selected");
     }
 };
 
 const loadImage = async (file: File): Promise<void> => {
+    console.log("Controls: Starting to load image file:", file.name);
     return new Promise((resolve, reject) => {
+        // Validate file type
+        if (!file.type.startsWith("image/")) {
+            console.error("Controls: Invalid file type:", file.type);
+            reject(new Error("Selected file is not an image"));
+            return;
+        }
+
+        console.log("Controls: Creating image element...");
         const image = new Image();
         const url = URL.createObjectURL(file);
+        console.log("Controls: Object URL created:", url);
         image.src = url;
 
         image.onload = () => {
-            setImage(image, url);
-            resolve();
+            try {
+                console.log(
+                    `Controls: Image loaded successfully: ${image.width}x${image.height}`,
+                );
+                setImage(image, url);
+                console.log("Controls: Image set in state");
+                resolve();
+            } catch (error) {
+                console.error("Controls: Error setting image:", error);
+                URL.revokeObjectURL(url);
+                reject(error);
+            }
         };
 
         image.onerror = (error) => {
+            console.error("Controls: Failed to load image:", error);
             URL.revokeObjectURL(url);
-            reject(error);
+            reject(new Error("Failed to load image file"));
         };
     });
 };

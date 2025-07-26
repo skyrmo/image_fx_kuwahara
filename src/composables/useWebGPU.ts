@@ -1,113 +1,116 @@
-import { ref, onUnmounted, watch, readonly, nextTick } from "vue";
-import { useImageState, useSettingsState } from "./useAppState";
-import { WebGPUService } from "../services/webgpu.service";
+import { ref, readonly, onUnmounted, shallowRef } from "vue";
+import { WebGPURenderer } from "../services/WebGPURenderer";
+// import type { AvailableEffectId } from "../services/EffectManager";
 
-let webGPUInstance: WebGPUService | null;
+// Singleton renderer instance
+let renderer: WebGPURenderer | null = null;
 
 export function useWebGPU() {
-    const { imageState } = useImageState();
-    const { settingsState } = useSettingsState();
-
     const isInitialized = ref(false);
     const isLoading = ref(false);
     const error = ref<string | null>(null);
-    const canvas = ref<HTMLCanvasElement>();
+    const activeEffects = shallowRef<Map<string, any>>(new Map());
 
-    const initialize = async (canvasElement: HTMLCanvasElement) => {
+    const initialize = async (canvas: HTMLCanvasElement) => {
         try {
+            console.log("WebGPU: Starting initialization...");
             isLoading.value = true;
             error.value = null;
-            canvas.value = canvasElement;
 
-            // Create singleton instance
-            if (!webGPUInstance) {
-                webGPUInstance = new WebGPUService();
+            if (!renderer) {
+                renderer = new WebGPURenderer();
+                console.log("WebGPU: Created new renderer");
             }
 
-            await webGPUInstance.initialize(canvasElement);
+            await renderer.initialize(canvas);
+            console.log("WebGPU: Renderer initialized successfully");
             isInitialized.value = true;
-
-            // Set up watchers after initialization
-            setupWatchers();
         } catch (err) {
-            const message =
-                err instanceof Error
-                    ? err.message
-                    : "Failed to initialize WebGPU";
-            error.value = message;
-            console.error("WebGPU initialization failed:", err);
+            console.error("WebGPU: Initialization failed:", err);
+            error.value =
+                err instanceof Error ? err.message : "Failed to initialize";
             throw err;
         } finally {
             isLoading.value = false;
         }
     };
 
-    const setupWatchers = () => {
-        // Watch for image changes
-        watch(
-            () => imageState.image,
-            async (newImage) => {
-                if (newImage && webGPUInstance && isInitialized.value) {
-                    try {
-                        isLoading.value = true;
-                        error.value = null;
-                        await webGPUInstance.loadImage(newImage);
-                    } catch (err) {
-                        error.value =
-                            err instanceof Error
-                                ? err.message
-                                : "Failed to load image";
-                    } finally {
-                        isLoading.value = false;
-                    }
-                }
-            },
-        );
-
-        // Watch for settings changes
-        watch(
-            settingsState,
-            async () => {
-                if (imageState.image && webGPUInstance && isInitialized.value) {
-                    try {
-                        await nextTick();
-                        await webGPUInstance.updateSettings(settingsState);
-                    } catch (err) {
-                        error.value =
-                            err instanceof Error
-                                ? err.message
-                                : "Failed to update settings";
-                    }
-                }
-            },
-            { deep: true },
-        );
-    };
-
-    const destroy = () => {
-        if (webGPUInstance) {
-            webGPUInstance.destroy();
-            webGPUInstance = null;
+    const loadImage = async (image: HTMLImageElement) => {
+        if (!renderer) {
+            console.error("WebGPU: Renderer not initialized");
+            throw new Error("Not initialized");
         }
-        isInitialized.value = false;
-        error.value = null;
+
+        try {
+            console.log(
+                "WebGPU: Loading image...",
+                image.width,
+                "x",
+                image.height,
+            );
+            isLoading.value = true;
+            await renderer.loadImage(image);
+            console.log("WebGPU: Image loaded successfully");
+        } catch (err) {
+            console.error("WebGPU: Failed to load image:", err);
+            error.value =
+                err instanceof Error ? err.message : "Failed to load image";
+            throw err;
+        } finally {
+            isLoading.value = false;
+        }
     };
 
-    // Cleanup on unmount
+    // const addEffect = async (
+    //     effectId: AvailableEffectId,
+    //     settings?: Record<string, any>,
+    // ) => {
+    //     if (!renderer) throw new Error("Not initialized");
+
+    //     const id = await renderer.addEffect(effectId, settings);
+    //     activeEffects.value = new Map(activeEffects.value).set(id, {
+    //         effectId,
+    //         settings,
+    //     });
+    //     return id;
+    // };
+
+    // const updateEffect = async (id: string, settings: Record<string, any>) => {
+    //     if (!renderer) return;
+    //     await renderer.updateEffect(id, settings);
+    // };
+
+    // const toggleEffect = async (id: string) => {
+    //     if (!renderer) return;
+    //     await renderer.toggleEffect(id);
+    // };
+
+    // const removeEffect = (id: string) => {
+    //     if (!renderer) return;
+    //     renderer.removeEffect(id);
+    //     const newMap = new Map(activeEffects.value);
+    //     newMap.delete(id);
+    //     activeEffects.value = newMap;
+    // };
+
     onUnmounted(() => {
-        // Only destroy if this is the last component using WebGPU
-        // In a real app, you might want more sophisticated reference counting
-        destroy();
+        renderer?.destroy();
+        renderer = null;
     });
 
     return {
-        // Reactive state
+        // State
         isInitialized: readonly(isInitialized),
         isLoading: readonly(isLoading),
         error: readonly(error),
+        activeEffects: readonly(activeEffects),
 
         // Actions
         initialize,
-        destroy,
+        loadImage,
+        // addEffect,
+        // updateEffect,
+        // toggleEffect,
+        // removeEffect,
     };
 }
