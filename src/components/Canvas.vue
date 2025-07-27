@@ -1,14 +1,6 @@
 <template>
     <main class="canvas-container">
-        <div v-if="error" class="error-message">
-            {{ error }}
-        </div>
-        <div v-else-if="isLoading" class="loading-message">Loading...</div>
-        <canvas
-            ref="canvasElement"
-            class="canvas-wgpu"
-            :class="{ 'canvas-ready': isInitialized }"
-        />
+        <canvas ref="canvasElement" class="canvas-wgpu" />
     </main>
 </template>
 
@@ -17,18 +9,18 @@ import { ref, onMounted, watch } from "vue";
 import { useWebGPU } from "../composables/useWebGPU";
 import { useImageState } from "../composables/useAppState";
 
-const canvasElement = ref<HTMLCanvasElement>();
-const { isInitialized, isLoading, error, initialize, loadImage } = useWebGPU();
 const { imageState } = useImageState();
+const canvasElement = ref<HTMLCanvasElement>();
+const { initialize, loadImage, isInitialized } = useWebGPU();
 
 onMounted(async () => {
     if (canvasElement.value) {
+        // initailize the webGPU composable
         await initialize(canvasElement.value);
 
         // If an image is already loaded in state, load it into WebGPU
         if (imageState.image && isInitialized.value) {
             try {
-                // console.log("Canvas: Loading existing image after init...");
                 await loadImage(imageState.image);
             } catch (err) {
                 console.error("Canvas: Failed to load existing image:", err);
@@ -41,16 +33,8 @@ onMounted(async () => {
 watch(
     () => imageState.image,
     async (newImage) => {
-        // console.log("Canvas: Image state changed:", {
-        //     newImage: !!newImage,
-        //     isInitialized: isInitialized.value,
-        //     imageWidth: newImage?.width,
-        //     imageHeight: newImage?.height,
-        // });
-
         if (newImage && isInitialized.value) {
             try {
-                // console.log("Canvas: Loading image into WebGPU...");
                 await loadImage(newImage);
             } catch (err) {
                 console.error("Canvas: Failed to load image:", err);
