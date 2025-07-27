@@ -17,9 +17,16 @@
             </label>
         </div>
 
-        <!-- Number of colours controls -->
         <div class="setting-group">
-            <label for="num-colors"> Number of Colors: </label>
+            <label class="checkbox-label">
+                <input type="checkbox" v-model="settingsState.enableBlur" />
+                Enable Blur Effect
+            </label>
+        </div>
+
+        <!-- K-means controls (only show when enabled) -->
+        <div class="setting-group" v-if="settingsState.enableKMeans">
+            <label for="num-colors">Number of Colors:</label>
             <input
                 class="number-input"
                 type="number"
@@ -37,14 +44,58 @@
                 v-model.number="settingsState.numColors"
             />
         </div>
+
+        <!-- Blur controls (only show when enabled) -->
+        <div class="setting-group" v-if="settingsState.enableBlur">
+            <label for="blur-radius">Blur Radius:</label>
+            <input
+                id="blur-radius"
+                type="range"
+                min="0.5"
+                max="5.0"
+                step="0.1"
+                v-model.number="settingsState.blurRadius"
+            />
+            <span>{{ settingsState.blurRadius.toFixed(1) }}</span>
+        </div>
     </main>
 </template>
 
 <script setup lang="ts">
 import { useSettingsState, useImageState } from "../composables/useAppState";
+import { watch } from "vue";
 
 const { setImage } = useImageState();
 const { settingsState } = useSettingsState();
+
+// Debug settings changes
+watch(
+    () => settingsState.enableKMeans,
+    (newVal, oldVal) => {
+        console.log("🎛️ Controls: enableKMeans changed:", oldVal, "→", newVal);
+    },
+);
+
+watch(
+    () => settingsState.numColors,
+    (newVal, oldVal) => {
+        console.log("🎛️ Controls: numColors changed:", oldVal, "→", newVal);
+    },
+);
+
+watch(
+    () => settingsState.enableBlur,
+    (newVal, oldVal) => {
+        console.log("🎛️ Controls: enableBlur changed:", oldVal, "→", newVal);
+    },
+);
+
+watch(
+    () => settingsState.blurRadius,
+    (newVal, oldVal) => {
+        console.log("🎛️ Controls: blurRadius changed:", oldVal, "→", newVal);
+    },
+);
 
 const handleFileSelect = (event: Event) => {
     // console.log("Controls: File selected");

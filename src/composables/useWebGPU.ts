@@ -1,14 +1,19 @@
-import { ref, readonly, onUnmounted } from "vue";
+import { onUnmounted } from "vue";
 import { WebGPURenderer } from "../services/WebGPURenderer";
-// import type { AvailableEffectId } from "../services/EffectManager";
+import type { AvailableEffectId } from "../services/EffectManager";
+import { useWebGPUState } from "./useWebGPUState";
 
 // Singleton renderer instance
 let renderer: WebGPURenderer | null = null;
 
 export function useWebGPU() {
-    const isInitialized = ref(false);
-    // const error = ref<string | null>(null);
-    // const activeEffects = shallowRef<Map<string, any>>(new Map());
+    const {
+        isInitialized,
+        activeEffects,
+        setInitialized,
+        addActiveEffect,
+        removeActiveEffect,
+    } = useWebGPUState();
 
     const initialize = async (canvas: HTMLCanvasElement) => {
         try {
@@ -19,7 +24,8 @@ export function useWebGPU() {
 
             await renderer.initialize(canvas);
 
-            isInitialized.value = true;
+            setInitialized(true);
+            console.log("🔧 useWebGPU: isInitialized set to true");
         } catch (err) {
             throw err;
         }
@@ -38,54 +44,48 @@ export function useWebGPU() {
         }
     };
 
-    // const addEffect = async (
-    //     effectId: AvailableEffectId,
-    //     settings?: Record<string, any>,
-    // ) => {
-    //     if (!renderer) throw new Error("Not initialized");
+    const addEffect = async (
+        effectId: AvailableEffectId,
+        settings?: Record<string, any>,
+    ) => {
+        if (!renderer) throw new Error("Not initialized");
 
-    //     const id = await renderer.addEffect(effectId, settings);
-    //     activeEffects.value = new Map(activeEffects.value).set(id, {
-    //         effectId,
-    //         settings,
-    //     });
-    //     return id;
-    // };
+        const id = await renderer.addEffect(effectId, settings);
+        addActiveEffect(id, {
+            effectId,
+            settings,
+        });
+        return id;
+    };
 
-    // const updateEffect = async (id: string, settings: Record<string, any>) => {
-    //     if (!renderer) return;
-    //     await renderer.updateEffect(id, settings);
-    // };
+    const updateEffect = async (id: string, settings: Record<string, any>) => {
+        if (!renderer) return;
+        await renderer.updateEffect(id, settings);
+    };
 
-    // const toggleEffect = async (id: string) => {
-    //     if (!renderer) return;
-    //     await renderer.toggleEffect(id);
-    // };
-
-    // const removeEffect = (id: string) => {
-    //     if (!renderer) return;
-    //     renderer.removeEffect(id);
-    //     const newMap = new Map(activeEffects.value);
-    //     newMap.delete(id);
-    //     activeEffects.value = newMap;
-    // };
+    const removeEffect = (id: string) => {
+        if (!renderer) return;
+        renderer.removeEffect(id);
+        removeActiveEffect(id);
+    };
 
     onUnmounted(() => {
-        renderer?.destroy();
-        renderer = null;
+        console.log("🧹 useWebGPU: Component unmounting");
+        // Don't destroy shared resources on component unmount
+        // renderer?.destroy();
+        // renderer = null;
     });
 
     return {
         // State
-        isInitialized: readonly(isInitialized),
-        // activeEffects: readonly(activeEffects),
+        isInitialized,
+        activeEffects,
 
         // Actions
         initialize,
         loadImage,
-        // addEffect,
-        // updateEffect,
-        // toggleEffect,
-        // removeEffect,
+        addEffect,
+        updateEffect,
+        removeEffect,
     };
 }

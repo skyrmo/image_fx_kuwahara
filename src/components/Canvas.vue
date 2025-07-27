@@ -8,41 +8,63 @@
 import { ref, onMounted, watch } from "vue";
 import { useWebGPU } from "../composables/useWebGPU";
 import { useImageState } from "../composables/useAppState";
+import { useEffects } from "../composables/useEffects";
 
 const { imageState } = useImageState();
 const canvasElement = ref<HTMLCanvasElement>();
 const { initialize, loadImage, isInitialized } = useWebGPU();
+const { applyEffects, activeEffectsDebug } = useEffects();
 
 onMounted(async () => {
     if (canvasElement.value) {
-        // initailize the webGPU composable
+        console.log("🏗️ Canvas: Initializing WebGPU...");
         await initialize(canvasElement.value);
+        console.log(
+            "✅ Canvas: WebGPU initialized, isInitialized:",
+            isInitialized.value,
+        );
 
-        // If an image is already loaded in state, load it into WebGPU
+        // If an image is already loaded, load it and apply effects
         if (imageState.image && isInitialized.value) {
             try {
+                console.log("📸 Canvas: Loading existing image...");
                 await loadImage(imageState.image);
+                console.log("🎨 Canvas: Applying initial effects...");
+                await applyEffects();
+                console.log(
+                    "🔍 Canvas: Active effects after initial apply:",
+                    activeEffectsDebug(),
+                );
             } catch (err) {
-                console.error("Canvas: Failed to load existing image:", err);
+                console.error("❌ Canvas: Failed to load existing image:", err);
             }
         }
     }
 });
 
-// Watch for image changes and load them into WebGPU
+// Watch for new images
 watch(
     () => imageState.image,
     async (newImage) => {
+        console.log(
+            "📷 Canvas: Image changed, newImage exists:",
+            !!newImage,
+            "isInitialized:",
+            isInitialized.value,
+        );
         if (newImage && isInitialized.value) {
             try {
+                console.log("📸 Canvas: Loading new image...");
                 await loadImage(newImage);
+                console.log("🎨 Canvas: Applying effects to new image...");
+                await applyEffects();
+                console.log(
+                    "🔍 Canvas: Active effects after new image:",
+                    activeEffectsDebug(),
+                );
             } catch (err) {
-                console.error("Canvas: Failed to load image:", err);
+                console.error("❌ Canvas: Failed to load image:", err);
             }
-        } else if (newImage && !isInitialized.value) {
-            console.log(
-                "Canvas: Image available but WebGPU not initialized yet",
-            );
         }
     },
 );
