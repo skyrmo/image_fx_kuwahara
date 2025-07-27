@@ -16,14 +16,6 @@
                 Enable K-means Color Quantization
             </label>
         </div>
-
-        <div class="setting-group">
-            <label class="checkbox-label">
-                <input type="checkbox" v-model="settingsState.enableBlur" />
-                Enable Blur Effect
-            </label>
-        </div>
-
         <!-- K-means controls (only show when enabled) -->
         <div class="setting-group" v-if="settingsState.enableKMeans">
             <label for="num-colors">Number of Colors:</label>
@@ -45,6 +37,12 @@
             />
         </div>
 
+        <div class="setting-group">
+            <label class="checkbox-label">
+                <input type="checkbox" v-model="settingsState.enableBlur" />
+                Enable Blur Effect
+            </label>
+        </div>
         <!-- Blur controls (only show when enabled) -->
         <div class="setting-group" v-if="settingsState.enableBlur">
             <label for="blur-radius">Blur Radius:</label>
@@ -63,54 +61,17 @@
 
 <script setup lang="ts">
 import { useSettingsState, useImageState } from "../composables/useAppState";
-import { watch } from "vue";
 
 const { setImage } = useImageState();
 const { settingsState } = useSettingsState();
 
-// Debug settings changes
-watch(
-    () => settingsState.enableKMeans,
-    (newVal, oldVal) => {
-        console.log("🎛️ Controls: enableKMeans changed:", oldVal, "→", newVal);
-    },
-);
-
-watch(
-    () => settingsState.numColors,
-    (newVal, oldVal) => {
-        console.log("🎛️ Controls: numColors changed:", oldVal, "→", newVal);
-    },
-);
-
-watch(
-    () => settingsState.enableBlur,
-    (newVal, oldVal) => {
-        console.log("🎛️ Controls: enableBlur changed:", oldVal, "→", newVal);
-    },
-);
-
-watch(
-    () => settingsState.blurRadius,
-    (newVal, oldVal) => {
-        console.log("🎛️ Controls: blurRadius changed:", oldVal, "→", newVal);
-    },
-);
-
 const handleFileSelect = (event: Event) => {
-    // console.log("Controls: File selected");
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (file) {
-        // console.log("Controls: File details:",
-        //     {
-        //     name: file.name,
-        //     type: file.type,
-        //     size: file.size,
-        // });
         loadImage(file).catch((error) => {
             console.error("Controls: Error loading image:", error);
-            // Reset file input
+
             input.value = "";
         });
     } else {
@@ -119,7 +80,6 @@ const handleFileSelect = (event: Event) => {
 };
 
 const loadImage = async (file: File): Promise<void> => {
-    // console.log("Controls: Starting to load image file:", file.name);
     return new Promise((resolve, reject) => {
         // Validate file type
         if (!file.type.startsWith("image/")) {
@@ -128,19 +88,13 @@ const loadImage = async (file: File): Promise<void> => {
             return;
         }
 
-        // console.log("Controls: Creating image element...");
         const image = new Image();
         const url = URL.createObjectURL(file);
-        // console.log("Controls: Object URL created:", url);
         image.src = url;
 
         image.onload = () => {
             try {
-                // console.log(
-                //     `Controls: Image loaded successfully: ${image.width}x${image.height}`,
-                // );
                 setImage(image, url);
-                // console.log("Controls: Image set in state");
                 resolve();
             } catch (error) {
                 console.error("Controls: Error setting image:", error);
